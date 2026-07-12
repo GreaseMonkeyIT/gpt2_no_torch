@@ -1,0 +1,20 @@
+# Core (training path) — numpy only; NO torch/jax per assignment rules
+numpy
+
+# Tokenization + data (not autograd; allowed)
+tiktoken
+datasets
+tqdm
+
+# Notebooks, plots, docs
+jupyter
+ipykernel
+matplotlib
+graphviz  # python bindings; the dot.exe binary comes from winget (see README)
+
+# Optional GPU (Saturday timeboxed experiment — GTX 1050 Ti, CUDA 12.x)
+# cupy-cuda12x
+
+# Study notebooks ONLY (zero-to-hero follow-alongs in notebooks/) — never
+# imported by the training path (engine/, model.py, optim.py, train.py)
+# torch  (installed via --index-url https://download.pytorch.org/whl/cu128)
