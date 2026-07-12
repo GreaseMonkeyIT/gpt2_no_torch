@@ -56,7 +56,7 @@ def plot(run_dir):
     it, tr = np.array(it), np.array(tr)
     vit, vl = np.array(vit), np.array(vl)
 
-    out_dir = os.path.dirname(os.path.abspath(__file__))
+    out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "plots")
     for kind, tf in (("loss", lambda y: y), ("ppl", np.exp)):
         ylab = "cross-entropy (nats)" if kind == "loss" else "perplexity"
         fig, ax = styled_axes(f"{run} — train/val {ylab.split(' ')[0]}", ylab)

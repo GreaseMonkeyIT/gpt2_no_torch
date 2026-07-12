@@ -1,17 +1,19 @@
 # Gradient derivations
 
 Scalar warm-ups were derived in [notebooks/warmups/00_micrograd_warmup.ipynb](notebooks/warmups/00_micrograd_warmup.ipynb)
-(micrograd-style, written by hand while following zero-to-hero). Tensor VJPs below
-were derived by hand overnight (Sat→Sun) in my Obsidian notes and ported here. Every one is verified mechanically by `tests/test_ops.py`
+(micrograd-style, worked through in the notebook while following the zero-to-hero guide). 
+Tensor VJPs below were derived by hand in my Obsidian notes, then ported and
+consolidated here (with Opus). Everything is verified 
+mechanically by `tests/test_ops.py`, which was in part inspired by [RyanTomich/np_GPT2](https://github.com/RyanTomich/np_GPT2)
 (central finite differences, float64). AI review pass disclosed in the README:
-one real error was caught in §11 (the `g_K` formula — see the note there), §9 was
-completed, and the "In the engine" cross-references were added.
+one real error was caught by Claude in #11 (the `g_K` formula; see the note there), #9 was
+completed by Claude, and the "In the engine" cross-references were added.
 
 ## Notation
 
-- `L` — the final scalar loss. For any node `x`, its gradient is `g_x = ∂L/∂x`,
+- `L`: the final scalar loss. For any node `x`, its gradient is `g_x = ∂L/∂x`,
   always the same shape as `x`.
-- Every `backward` answers one question: **given `g_out`, produce `g_in`** — a
+- Every `backward` answers one question: **given `g_out`, produce `g_in`**; a
   vector–Jacobian product. No full Jacobian is ever materialized.
 - Fan-out rule: a node used in k places receives the **sum** of k contributions
   (`+=` in code). Verified in the warmup with `b = a + a → a.grad = 2`.
@@ -45,7 +47,7 @@ Suppose $x = 5$ is broadcast to length three. Mathematically this behaves as
 though $[x, x, x]$ were created — the computational graph is a three-way
 fan-out, each child carrying the same value.
 
-Warm-up (already proved in §0's notebook): for $b = x + x$, the add node has
+Warm-up (already proved in #0's notebook): for $b = x + x$, the add node has
 **two edges** from $x$, and the chain rule sums over edges:
 
 $$
@@ -146,7 +148,7 @@ $(m,n)\cdot(n,k)$ is the only way to build it from $g_C$ and $B$.
 
 For $A \in \mathbb{R}^{B\times m\times k}$ against a shared weight
 $W \in \mathbb{R}^{k\times n}$, the weight is mathematically **broadcast**
-across the batch dimension. By the unbroadcast theorem (§1), each batch
+across the batch dimension. By the unbroadcast theorem (#1), each batch
 contributes an independent gradient:
 
 $$
@@ -156,7 +158,7 @@ $$
 **In the engine:** [tensor.py:141](engine/tensor.py:141). The transposes are
 `swapaxes(-1, -2)` (last two axes — the batched generalization of $^{\mathsf T}$),
 and the $\sum_b$ above is not special-cased: it falls out of the same
-`unbroadcast` call every other op uses. §1 pays for itself here.
+`unbroadcast` call every other op uses. #1 pays for itself here.
 
 ## 3. Reductions: sum, mean, max
 
@@ -193,7 +195,7 @@ collapsed axis, then `broadcast_to`); mean at
 [tensor.py:168](engine/tensor.py:168) is literally `sum × (1/n)` — no separate
 derivation, matching this section. **Max never got an op**: the only max in the
 model is the stability shift inside softmax/cross-entropy, which is applied to
-raw `.data` as a *constant* — legalized by shift invariance (§7). The scaffold's
+raw `.data` as a *constant* — legalized by shift invariance (#7). The scaffold's
 "max only if needed" resolved to *not needed*.
 
 ## 4. Reshape / transpose / split / slice
@@ -212,7 +214,7 @@ Their backward pass is therefore the exact inverse rearrangement.
 **In the engine:** reshape [tensor.py:174](engine/tensor.py:174), transpose
 [tensor.py:183](engine/tensor.py:183) (`swapaxes` is its own inverse),
 slice/gather via `__getitem__` [tensor.py:192](engine/tensor.py:192) — whose
-backward is a scatter-**add** into zeros, which §5 explains.
+backward is a scatter-**add** into zeros, which #5 explains.
 
 ## 5. Embedding gather
 
@@ -269,7 +271,7 @@ $$
 
 **In the engine:** [tensor.py:260](engine/tensor.py:260), fused so the graph
 holds one node instead of eight. The forward's $\tanh(u)$ is cached (`t`) and
-reused in backward — the §0 rule about never recomputing.
+reused in backward — the #0 rule about never recomputing.
 
 ## 7. Softmax (standalone — attention needs it)
 
@@ -291,7 +293,7 @@ $$
 Subtracting the row max therefore changes nothing mathematically while keeping
 every exponent $\le 0$ (float32 `exp` overflows past $z \approx 88.7$). It also
 means the subtracted max may be treated as a **constant** in backward — the
-gradient through the shift cancels exactly, so no max-op gradient (§3) is ever
+gradient through the shift cancels exactly, so no max-op gradient (#3) is ever
 needed.
 
 ### Jacobian
@@ -329,7 +331,7 @@ $L = -\sum_i y_i \log p_i$.
 
 ### Derivation
 
-Chain rule through the probabilities, using §7's Jacobian and
+Chain rule through the probabilities, using #7's Jacobian and
 $\partial L/\partial p_i = -y_i/p_i$:
 
 $$
@@ -370,7 +372,7 @@ Three bridges from the math to the code:
 - *The mean:* `d /= n` with $n = B{\cdot}T$ — the second box.
 - *Stability:* forward computes **log-softmax** via the log-sum-exp identity
   $\log p_i = (z_i - m) - \log\sum_k e^{z_k - m}$ with $m = \max_k z_k$
-  (shift legal by §7), so no probability is ever exponentiated and then logged.
+  (shift legal by #7), so no probability is ever exponentiated and then logged.
   `exp(logp)` in backward recovers $p$ exactly.
 
 Independent verification: I re-derived and hand-wrote this same backward
@@ -381,7 +383,7 @@ Independent verification: I re-derived and hand-wrote this same backward
 ## 9. LayerNorm — composed, not fused (sprint trim)
 
 LayerNorm is deliberately **composed from primitives** the engine already has —
-mean, subtract, multiply, `**(-0.5)` — so its backward emerges from §0–§3
+mean, subtract, multiply, `**(-0.5)` — so its backward emerges from #0–#3
 automatically and needs no fused derivation. Forward, per position over the
 channel axis:
 
@@ -398,12 +400,12 @@ $$
 The subtlety worth stating: $\mu$ and $\sigma$ are **functions of $x$**, so the
 automatic backward is silently applying the total derivative — gradient flows
 to $x$ along three paths (directly, through $\mu$, and through $\sigma^2$), and
-the topo-sorted engine sums them (§1 fan-out rule) without being told.
+the topo-sorted engine sums them (#1 fan-out rule) without being told.
 
 Parameter gradients, as a sanity check on what the engine computes: per
 position $\partial L/\partial \beta_i = g_{y_i}$ and
 $\partial L/\partial \gamma_i = g_{y_i}\hat x_i$; since $\gamma, \beta \in \mathbb{R}^{C}$
-are broadcast over $(B, T)$, the §1 rule sums those contributions:
+are broadcast over $(B, T)$, the #1 rule sums those contributions:
 
 $$
 \boxed{\;g_\beta[c] = \sum_{b,t} g_y[b,t,c],
@@ -413,7 +415,7 @@ $$
 
 **In the engine/model:** [model.py:54](model.py:54) — five lines of primitives.
 Note the variance is the biased $1/C$ mean (matching GPT-2), $\varepsilon = 10^{-5}$
-sits inside the square root, and the $(\cdot)^{-0.5}$ is the §0 pow rule doing
+sits inside the square root, and the $(\cdot)^{-0.5}$ is the #0 pow rule doing
 the square root and the division in one op. Stretch goal (fused three-term
 backward + benchmark) was correctly triaged away — the composed version is what
 shipped and what the grad checks verify. The fused three-term normalization
@@ -471,11 +473,11 @@ walks the shapes and names which VJP fires at each arrow.
 Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
 
 1. **QKV projection** — $Q = XW_Q$, $K = XW_K$, $V = XW_V$ (one fused Linear in
-   practice): $(B,T,C) \to (B,T,3C)$, split. Backward: matmul (§2) + split (§4).
+   practice): $(B,T,C) \to (B,T,3C)$, split. Backward: matmul (#2) + split (#4).
 2. **Split heads** — reshape to $(B,T,H,hs)$, transpose to $(B,H,T,hs)$.
-   Backward: inverse transpose, inverse reshape (§4).
+   Backward: inverse transpose, inverse reshape (#4).
 3. **Scores** — $S = QK^{\mathsf T}$: $(B,H,T,hs) \times (B,H,hs,T) \to (B,H,T,T)$.
-   Backward, by §2:
+   Backward, by #2:
 
    $$
    g_Q = g_S K,
@@ -489,28 +491,28 @@ Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
    > $Q^{\mathsf T} g_S$ is the gradient **of $K^{\mathsf T}$**, the thing
    > literally multiplied. And the engine *does* compute it: at
    > [model.py:87](model.py:87) the graph is `k.transpose(-2,-1)` then matmul,
-   > so §2 produces $g_{K^{\mathsf T}} = Q^{\mathsf T} g_S$ at the transpose
-   > node, and §4's transpose backward flips it: 
+   > so #2 produces $g_{K^{\mathsf T}} = Q^{\mathsf T} g_S$ at the transpose
+   > node, and #4's transpose backward flips it: 
    > $g_K = (Q^{\mathsf T} g_S)^{\mathsf T} = g_S^{\mathsf T} Q$. Same quantity,
    > one op later — the error was a label, but the label is the difference
    > between the graph's midpoint and its endpoint.
 
-4. **Scale** — $S' = S/\sqrt{hs}$. Backward: same constant (§0 mul).
+4. **Scale** — $S' = S/\sqrt{hs}$. Backward: same constant (#0 mul).
 5. **Causal mask** — $S'' = S' + M$, $M$ zero on/below the diagonal and a
    **large finite negative** ($-10^9$) above. Backward: add passes gradient
    through; $M$ is a constant with no gradient path. Why not $-\infty$? After
-   softmax a masked position has $p = 0$, and the §7 backward multiplies by
+   softmax a masked position has $p = 0$, and the #7 backward multiplies by
    $p$ — with $-\infty$ the forward produces $e^{-\infty} = 0$ safely but mixed
    expressions like $0 \cdot \infty$ appear in float grad paths and produce
    NaN; $-10^9$ underflows to $p = 0$ with no infinities anywhere
    ([model.py:73](model.py:73)).
-6. **Softmax** — $A = \operatorname{softmax}(S'')$ row-wise. Backward: §7's VJP.
+6. **Softmax** — $A = \operatorname{softmax}(S'')$ row-wise. Backward: #7's VJP.
 7. **Weighted sum** — $O = AV$: $(B,H,T,T)\times(B,H,T,hs) \to (B,H,T,hs)$.
-   Backward, §2 again: $g_A = g_O V^{\mathsf T}$, $g_V = A^{\mathsf T} g_O$
+   Backward, #2 again: $g_A = g_O V^{\mathsf T}$, $g_V = A^{\mathsf T} g_O$
    (both label-correct here — check the shapes and see why this one needed no
    fixing: $A^{\mathsf T} g_O$ lands on $(T,hs)$, which *is* $V$'s shape).
 8. **Merge heads** — transpose, reshape back to $(B,T,C)$: inverse of step 2.
-9. **Output projection** — $Y = OW_O$: matmul (§2).
+9. **Output projection** — $Y = OW_O$: matmul (#2).
 
 No dedicated attention backward exists anywhere in the engine — steps 1–9 are
 [model.py:79](model.py:79)–[model.py:91](model.py:91), and the backward is the
@@ -526,4 +528,4 @@ of the engine.
 5. D. Kingma, J. Ba, *Adam: A Method for Stochastic Optimization*, 2015.
 6. I. Loshchilov, F. Hutter, *Decoupled Weight Decay Regularization*, 2019.
 7. CS231n course notes (Stanford); NumPy broadcasting documentation; one Medium
-   explainer used as a reference for §8's presentation.
+   explainer used as a reference for #8's presentation.

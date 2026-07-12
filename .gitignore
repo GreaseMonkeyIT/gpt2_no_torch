@@ -1,26 +1,25 @@
-# env
+# Python / runtime — regenerated, or too large for git
 .venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.obsidian/
 
-# data artifacts (regenerate via data/prepare_*.py)
+# datasets — regenerate with `python run.py prep-shakespeare` / `prep-owt`
 data/**/*.bin
 data/**/*.pkl
 data/**/input.txt
 data/hf_cache/
+data/owt_prep.progress.log
 
-# training artifacts
+# training outputs — checkpoints + snapshots (figures are kept in plots/)
 out/
 *.npz
 
-# keep plots/*.png — they are submission artifacts
+# non-submission material (personal notes, internal logs, scratch)
+_local/
 
-# not shipped: personal notes / scratch / internal (RESTRUCTURE_LOG.md:89)
-.obsidian/
-Math_Shit/
-RULES/
-image.png
-implement GPT-2 but with no torch jax *.md
-RESTRUCTURE_LOG.md
-data/owt_prep.progress.log
+# internal planning/study docs — submission ships only README, DERIVATIONS, JOURNAL
+CODEMAP.md
+ROADMAP.md
+SPRINT.md

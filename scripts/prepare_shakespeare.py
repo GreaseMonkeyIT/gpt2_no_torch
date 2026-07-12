@@ -10,7 +10,7 @@ import urllib.request
 import numpy as np
 
 URL = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-OUT = os.path.join(os.path.dirname(__file__), "shakespeare_char")
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "shakespeare_char")
 
 os.makedirs(OUT, exist_ok=True)
 txt_path = os.path.join(OUT, "input.txt")

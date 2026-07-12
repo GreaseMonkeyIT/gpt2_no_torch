@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--max-tokens", type=int, default=100_000_000)
 args = parser.parse_args()
 
-OUT = os.path.join(os.path.dirname(__file__), "openwebtext")
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "openwebtext")
 os.makedirs(OUT, exist_ok=True)
 
 enc = tiktoken.get_encoding("gpt2")
