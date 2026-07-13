@@ -94,7 +94,7 @@ broadcasting only creates copies along (1) newly added leading axes and
 precisely of summing the gradient over those axes:
 
 $$
-\boxed{\;g_x = \operatorname{unbroadcast}(g_y,\ \operatorname{shape}(x)).\;}
+\boxed{\;g_x = \mathrm{unbroadcast}(g_y,\ \mathrm{shape}(x)).\;}
 $$
 
 Specification of `unbroadcast(g, s)`: sum over every leading axis added during
@@ -179,7 +179,7 @@ $Y_i = \sum_j X_{ij}$, likewise $g_X[i,j] = g_Y[i]$: the gradient is
 $y = \frac{1}{n}\sum_i x_i$ gives $\partial y/\partial x_i = \frac1n$:
 
 $$
-\boxed{\;g_x = \frac{1}{n}\operatorname{broadcast}(g_y)\;}
+\boxed{\;g_x = \frac{1}{n}\mathrm{broadcast}(g_y)\;}
 $$
 
 — identical to sum, scaled by $1/n$.
@@ -204,7 +204,7 @@ These operations do not modify numerical values; they only rearrange them.
 Their backward pass is therefore the exact inverse rearrangement.
 
 - **Reshape:** every output element corresponds to exactly one input element,
-  so $\boxed{g_x = \operatorname{reshape}(g_y, \operatorname{shape}(x))}$.
+  so $\boxed{g_x = \mathrm{reshape}(g_y, \mathrm{shape}(x))}$.
 - **Transpose:** $B = A^{\mathsf T}$, $B_{ij} = A_{ji}$
   $\Rightarrow \boxed{g_A = g_B^{\mathsf T}}$ — swap the indices back.
 - **Slice:** only the sliced region influences the loss: zeros of the input
@@ -250,7 +250,7 @@ repeated-index case has its own test in the grad-check battery.
 GPT-2's activation:
 
 $$
-\operatorname{GELU}(x) = \tfrac12 x\left(1 + \tanh(u)\right),
+\mathrm{GELU}(x) = \tfrac12 x\left(1 + \tanh(u)\right),
 \qquad
 u(x) = a\,(x + 0.044715\,x^3),
 \qquad
@@ -263,7 +263,7 @@ and $\frac{d}{dx}\tanh(u) = (1 - \tanh^2 u)\,u'$:
 
 $$
 \boxed{\;
-\frac{d}{dx}\operatorname{GELU}(x)
+\frac{d}{dx}\mathrm{GELU}(x)
 = \underbrace{\tfrac12\left(1+\tanh u\right)}_{\text{product rule: } f'g}
 + \underbrace{\tfrac12 x\,(1-\tanh^2 u)\;a\,(1 + 0.134145\,x^2)}_{\text{chain rule: } f g'}
 \;}
@@ -284,10 +284,10 @@ $$
 For any constant $c$:
 
 $$
-\operatorname{softmax}(z - c)_i
+\mathrm{softmax}(z - c)_i
 = \frac{e^{z_i - c}}{\sum_k e^{z_k - c}}
 = \frac{e^{z_i}\,e^{-c}}{e^{-c}\sum_k e^{z_k}}
-= \operatorname{softmax}(z)_i.
+= \mathrm{softmax}(z)_i.
 $$
 
 Subtracting the row max therefore changes nothing mathematically while keeping
@@ -506,7 +506,7 @@ Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
    expressions like $0 \cdot \infty$ appear in float grad paths and produce
    NaN; $-10^9$ underflows to $p = 0$ with no infinities anywhere
    ([model.py:73](model.py:73)).
-6. **Softmax** — $A = \operatorname{softmax}(S'')$ row-wise. Backward: #7's VJP.
+6. **Softmax** — $A = \mathrm{softmax}(S'')$ row-wise. Backward: #7's VJP.
 7. **Weighted sum** — $O = AV$: $(B,H,T,T)\times(B,H,T,hs) \to (B,H,T,hs)$.
    Backward, #2 again: $g_A = g_O V^{\mathsf T}$, $g_V = A^{\mathsf T} g_O$
    (both label-correct here — check the shapes and see why this one needed no
