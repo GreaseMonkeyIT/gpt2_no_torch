@@ -152,7 +152,6 @@ notebooks/         # warmups (micrograd → backprop-ninja) + course/
 data/ · plots/ · out/    # tokenized bins · figures · checkpoints & logs
 ```
 
-Per-file, per-function breakdown: [CODEMAP.md](CODEMAP.md).
 
 ## Tests
 
