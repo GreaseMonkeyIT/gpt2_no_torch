@@ -1,4 +1,4 @@
-	# GPT-2 from scratch — no torch/jax autograd
+# GPT-2 from scratch — no torch/jax autograd
 
 Rumik Polaris fellowship assignment: a GPT-2 style decoder-only transformer,
 trained on an OpenWebText subset, with a hand-written numpy autograd engine.
