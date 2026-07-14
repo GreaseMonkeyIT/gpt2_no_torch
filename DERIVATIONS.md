@@ -102,12 +102,12 @@ broadcasting; sum (with `keepdims`) over every axis where $s$ has size 1;
 result has shape $s$. The spec is independent of which elementwise op produced
 the broadcast.
 
-**In the engine:** [tensor.py:45](engine/tensor.py:45) implements the spec
+**In the engine:** [tensor.py:48](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L48) implements the spec
 verbatim (the `while` loop is case 3, the `keepdims=True` sum is case 2), and
-[`_accum`](engine/tensor.py:58) is the fan-out sum itself — every VJP
+[`_accum`](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L61) is the fan-out sum itself — every VJP
 contribution is `+=`'d, never assigned. Every binary op's backward calls both:
-see `__add__` ([tensor.py:89](engine/tensor.py:89)) and `__mul__`
-([tensor.py:106](engine/tensor.py:106)).
+see `__add__` ([tensor.py:87](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L87)) and `__mul__`
+([tensor.py:104](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L104)).
 
 ## 2. Matmul
 
@@ -155,7 +155,7 @@ $$
 \boxed{\;g_W = \sum_{b=1}^{B} A_b^{\mathsf T}\, g_{C,b}.\;}
 $$
 
-**In the engine:** [tensor.py:141](engine/tensor.py:141). The transposes are
+**In the engine:** [tensor.py:144](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L144). The transposes are
 `swapaxes(-1, -2)` (last two axes — the batched generalization of $^{\mathsf T}$),
 and the $\sum_b$ above is not special-cased: it falls out of the same
 `unbroadcast` call every other op uses. #1 pays for itself here.
@@ -190,9 +190,9 @@ $y = \max(x)$ routes gradient only to the selected element:
 $g_{x_i} = g_y$ if $x_i = \max(x)$, else $0$ (ties: any subgradient choice is
 valid).
 
-**In the engine:** sum at [tensor.py:156](engine/tensor.py:156) (re-expand the
+**In the engine:** sum at [tensor.py:159](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L159) (re-expand the
 collapsed axis, then `broadcast_to`); mean at
-[tensor.py:168](engine/tensor.py:168) is literally `sum × (1/n)` — no separate
+[tensor.py:171](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L171) is literally `sum × (1/n)` — no separate
 derivation, matching this section. **Max never got an op**: the only max in the
 model is the stability shift inside softmax/cross-entropy, which is applied to
 raw `.data` as a *constant* — legalized by shift invariance (#7). The scaffold's
@@ -211,9 +211,9 @@ Their backward pass is therefore the exact inverse rearrangement.
   shape, with $g_y$ pasted into the sliced region.
 - **Split:** forward partitions; backward concatenates the pieces' gradients.
 
-**In the engine:** reshape [tensor.py:174](engine/tensor.py:174), transpose
-[tensor.py:183](engine/tensor.py:183) (`swapaxes` is its own inverse),
-slice/gather via `__getitem__` [tensor.py:192](engine/tensor.py:192) — whose
+**In the engine:** reshape [tensor.py:177](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L177), transpose
+[tensor.py:186](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L186) (`swapaxes` is its own inverse),
+slice/gather via `__getitem__` [tensor.py:195](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L195) — whose
 backward is a scatter-**add** into zeros, which #5 explains.
 
 ## 5. Embedding gather
@@ -240,9 +240,9 @@ outputs, and the chain rule requires $g_{W_3} = g_1 + g_2$. Indexed
 only the last value, silently dropping gradients for every repeated token
 (and in a language-model batch, common tokens repeat constantly).
 
-**In the engine:** [`_scatter_add`](engine/tensor.py:37) — `np.add.at` on CPU,
+**In the engine:** [`_scatter_add`](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L40) — `np.add.at` on CPU,
 `cupyx.scatter_add` on GPU — used by both the fused
-[`embedding`](engine/tensor.py:316) op and `__getitem__`'s backward. The
+[`embedding`](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L319) op and `__getitem__`'s backward. The
 repeated-index case has its own test in the grad-check battery.
 
 ## 6. GELU (tanh approximation)
@@ -269,7 +269,7 @@ $$
 \;}
 $$
 
-**In the engine:** [tensor.py:260](engine/tensor.py:260), fused so the graph
+**In the engine:** [tensor.py:263](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L263), fused so the graph
 holds one node instead of eight. The forward's $\tanh(u)$ is cached (`t`) and
 reused in backward — the #0 rule about never recomputing.
 
@@ -320,7 +320,7 @@ $$
 \boxed{\;g_z = p \odot \left(g_p - \langle g_p, p\rangle\,\mathbf 1\right).\;}
 $$
 
-**In the engine:** [tensor.py:276](engine/tensor.py:276) — forward does the max
+**In the engine:** [tensor.py:279](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L279) — forward does the max
 shift on `.data` (constant, per the invariance argument), backward is the boxed
 line verbatim: `p * (g - (g * p).sum(axis, keepdims=True))`.
 
@@ -363,7 +363,7 @@ and it materializes a $(B{\cdot}T, V)$ probability tensor plus its gradient.
 Doing the cancellation on paper, once, exactly — that is this section — is why
 the fused op exists.
 
-**In the engine:** [tensor.py:291](engine/tensor.py:291).
+**In the engine:** [tensor.py:294](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/engine/tensor.py#L294).
 Three bridges from the math to the code:
 
 - *Integer targets, no one-hot:* $y$ is never materialized. Since $p - y$
@@ -413,7 +413,7 @@ $$
 g_\gamma[c] = \sum_{b,t} g_y[b,t,c]\;\hat x[b,t,c].\;}
 $$
 
-**In the engine/model:** [model.py:54](model.py:54) — five lines of primitives.
+**In the engine/model:** [model.py:54](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/model.py#L54) — five lines of primitives.
 Note the variance is the biased $1/C$ mean (matching GPT-2), $\varepsilon = 10^{-5}$
 sits inside the square root, and the $(\cdot)^{-0.5}$ is the #0 pow rule doing
 the square root and the division in one op. Stretch goal (fused three-term
@@ -457,12 +457,12 @@ $$
 Decay acts on the weights directly, not through the gradient — so it is not
 rescaled by $1/\sqrt{\hat v}$, which is the entire difference from Adam-with-L2.
 
-**In the engine:** [optim.py:51](optim.py:51). The decay is applied as
+**In the engine:** [optim.py:51](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/optim.py#L51). The decay is applied as
 `p.data *= 1 - lr*wd` (identical to the $-\eta\lambda\theta$ term), and **only
 to tensors with `ndim >= 2`** — matrices and embeddings decay; biases and
 LayerNorm gains don't (decaying a LN gain toward zero fights the normalization
 it parameterizes). `lr` arrives per-step from the warmup+cosine schedule in
-[`get_lr`](optim.py:16).
+[`get_lr`](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/optim.py#L16).
 
 ## 11. Attention as a composition
 
@@ -490,7 +490,7 @@ Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
    > $(hs,T)\cdot(T,T) = (hs,T)$ — that is $K^{\mathsf T}$'s shape, not $K$'s.
    > $Q^{\mathsf T} g_S$ is the gradient **of $K^{\mathsf T}$**, the thing
    > literally multiplied. And the engine *does* compute it: at
-   > [model.py:87](model.py:87) the graph is `k.transpose(-2,-1)` then matmul,
+   > [model.py:87](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/model.py#L87) the graph is `k.transpose(-2,-1)` then matmul,
    > so #2 produces $g_{K^{\mathsf T}} = Q^{\mathsf T} g_S$ at the transpose
    > node, and #4's transpose backward flips it: 
    > $g_K = (Q^{\mathsf T} g_S)^{\mathsf T} = g_S^{\mathsf T} Q$. Same quantity,
@@ -505,7 +505,7 @@ Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
    $p$ — with $-\infty$ the forward produces $e^{-\infty} = 0$ safely but mixed
    expressions like $0 \cdot \infty$ appear in float grad paths and produce
    NaN; $-10^9$ underflows to $p = 0$ with no infinities anywhere
-   ([model.py:73](model.py:73)).
+   ([model.py:73](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/model.py#L73)).
 6. **Softmax** — $A = \mathrm{softmax}(S'')$ row-wise. Backward: #7's VJP.
 7. **Weighted sum** — $O = AV$: $(B,H,T,T)\times(B,H,T,hs) \to (B,H,T,hs)$.
    Backward, #2 again: $g_A = g_O V^{\mathsf T}$, $g_V = A^{\mathsf T} g_O$
@@ -515,7 +515,7 @@ Input $X \in \mathbb{R}^{B\times T\times C}$, $C = H\cdot hs$.
 9. **Output projection** — $Y = OW_O$: matmul (#2).
 
 No dedicated attention backward exists anywhere in the engine — steps 1–9 are
-[model.py:79](model.py:79)–[model.py:91](model.py:91), and the backward is the
+[model.py:79](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/model.py#L79)–[model.py:91](https://github.com/GreaseMonkeyIT/gpt2_no_torch/blob/main/model.py#L91), and the backward is the
 topo sort visiting these nine VJPs in reverse. That is the whole design thesis
 of the engine.
 
